@@ -10,4 +10,7 @@
 
 @interface EPDatePicker : UIView
 
+@property (copy, nonatomic) NSDate *date;
+@property (copy, nonatomic) NSTimeZone *timezone;
+
 @end

@@ -46,6 +46,7 @@
     self.clipsToBounds = YES;
     self.rowHeight = 40;
     self.deltaY = 0;
+    self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 }
 
 -(void) handleScrollGesture
@@ -71,23 +72,36 @@
 
 - (void) finishScrollGestureWithVelocity:(CGFloat) velocity
 {
-    CGFloat target = self.selectedRow * self.rowHeight + self.deltaY;
+    NSInteger selected = [self subviewAtVerticalPosition:self.bounds.origin.y + self.bounds.size.height / 2].tag;
+    [self scrollToRow:selected];
+}
+
+- (void) scrollToRow:(NSInteger)row
+{
+    CGFloat target = row * self.rowHeight + self.deltaY;
     
     [UIView animateWithDuration:0.25 delay:0.0
-        options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionLayoutSubviews | UIViewAnimationOptionAllowUserInteraction
-        animations:^{
-            self.bounds = CGRectMake(self.bounds.origin.x, target, self.bounds.size.width, self.bounds.size.height);
-        } completion:^(BOOL finished) {
-            for (UIView *view in self.subviews) {
-                CGRect frame = view.frame;
-                frame.origin.y -= self.bounds.origin.y;
-                view.frame = frame;
-            }
-            self.deltaY -= self.bounds.origin.y;
-            self.bounds = CGRectMake(self.bounds.origin.x, 0, self.bounds.size.width, self.bounds.size.height);
-            [self.scrollGesture setTranslation:CGPointZero inView:self];
-            [self setNeedsLayout];
-        }
+                        options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionLayoutSubviews | UIViewAnimationOptionAllowUserInteraction
+                     animations:^{
+                         self.bounds = CGRectMake(self.bounds.origin.x, target, self.bounds.size.width, self.bounds.size.height);
+                     } completion:^(BOOL finished) {
+                         for (UIView *view in self.subviews) {
+                             CGRect frame = view.frame;
+                             frame.origin.y -= self.bounds.origin.y;
+                             view.frame = frame;
+                         }
+                         self.deltaY -= self.bounds.origin.y;
+                         self.bounds = CGRectMake(self.bounds.origin.x, 0, self.bounds.size.width, self.bounds.size.height);
+                         [self.scrollGesture setTranslation:CGPointZero inView:self];
+                         [self setNeedsLayout];
+
+                         if (row != self.selectedRow) {
+                             _selectedRow = row; // Not triggering scroll
+                             [self.delegate infinitePickerColumn:self selectedRowAtIndex:self.selectedRow];
+                         }
+                         else
+                             _selectedRow = row; // Not triggering scroll
+                     }
      ];
 }
 
@@ -120,14 +134,6 @@
         [((UIView*)self.orderedSubviews[self.orderedSubviews.count - 1]) removeFromSuperview];
         [self.orderedSubviews removeObjectAtIndex:self.orderedSubviews.count - 1];
     }
-    
-    NSInteger selected = [self subviewAtVerticalPosition:self.bounds.origin.y + self.bounds.size.height / 2].tag;
-    if (selected != self.selectedRow) {
-        self.selectedRow = selected;
-        [self.delegate infinitePickerColumn:self selectedRowAtIndex:self.selectedRow];
-    }
-    else
-        self.selectedRow = selected;
 }
 
 - (UIView*) addSubviewAtTop
@@ -175,6 +181,24 @@
             l = c;
     }
     return self.orderedSubviews[l];
+}
+
+- (void)setSelectedRow:(NSInteger)selectedRow
+{
+    _selectedRow = selectedRow;
+    [self scrollToRow:selectedRow];
+}
+
+- (void) reloadData
+{
+    [self.layer removeAllAnimations];
+    for (UIView *view in self.orderedSubviews) {
+        [view removeFromSuperview];
+    }
+    [self.orderedSubviews removeAllObjects];
+    self.bounds = CGRectMake(self.bounds.origin.x, 0, self.bounds.size.width, self.bounds.size.height);
+    self.deltaY = 0;
+    [self setNeedsLayout];
 }
 
 @end

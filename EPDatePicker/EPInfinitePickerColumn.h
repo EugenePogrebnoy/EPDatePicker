@@ -32,4 +32,6 @@
 
 @property (nonatomic) NSInteger selectedRow;
 
+- (void) reloadData;
+
 @end

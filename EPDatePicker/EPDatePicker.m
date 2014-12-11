@@ -11,7 +11,13 @@
 
 @interface EPDatePicker () <InfinitePickerColumnDelegate, InfinitePickerColumnDataSource>
 
+@property (strong, nonatomic) EPInfinitePickerColumn *dayPicker;
+@property (strong, nonatomic) EPInfinitePickerColumn *monthPicker;
 @property (strong, nonatomic) EPInfinitePickerColumn *yearPicker;
+
+@property (copy, nonatomic) NSDate *referenceDate;
+@property (copy, nonatomic) NSCalendar *calendar;
+@property (strong, nonatomic) NSDateFormatter *dateFormatter;
 
 @end
 
@@ -37,7 +43,23 @@
 
 - (void) genericInit
 {
-    self.yearPicker = [[EPInfinitePickerColumn alloc] initWithFrame:self.bounds];
+    self.date = [NSDate date];
+    self.referenceDate = self.date;
+    self.calendar = [NSCalendar calendarWithIdentifier:NSCalendarIdentifierGregorian];
+    self.dateFormatter = [[NSDateFormatter alloc] init];
+    self.timezone = [NSTimeZone localTimeZone];
+    
+    CGFloat day_month_pos = 0.3 * self.bounds.size.width;
+    CGFloat month_year_pos = 0.8 * self.bounds.size.width;
+    self.dayPicker = [[EPInfinitePickerColumn alloc] initWithFrame:CGRectMake(0, 0, day_month_pos, self.bounds.size.height)];
+    self.dayPicker.delegate = self;
+    self.dayPicker.dataSource = self;
+    [self addSubview:self.dayPicker];
+    self.monthPicker = [[EPInfinitePickerColumn alloc] initWithFrame:CGRectMake(day_month_pos, 0, month_year_pos - day_month_pos, self.bounds.size.height)];
+    self.monthPicker.delegate = self;
+    self.monthPicker.dataSource = self;
+    [self addSubview:self.monthPicker];
+    self.yearPicker = [[EPInfinitePickerColumn alloc] initWithFrame:CGRectMake(month_year_pos, 0, self.bounds.size.width - month_year_pos, self.bounds.size.height)];
     self.yearPicker.delegate = self;
     self.yearPicker.dataSource = self;
     [self addSubview:self.yearPicker];
@@ -45,14 +67,97 @@
 
 - (void)infinitePickerColumn:(EPInfinitePickerColumn *)pickerColumn selectedRowAtIndex:(NSInteger)index
 {
-    CLS_LOG(@"selected %ld", (long)index);
+    NSInteger day = [self.calendar component:NSCalendarUnitDay fromDate:self.referenceDate];
+    day = ((day + self.dayPicker.selectedRow - 1) % 31 + 31) % 31 + 1;
+    NSInteger month = [self.calendar component:NSCalendarUnitMonth fromDate:self.referenceDate];
+    month = ((month + self.monthPicker.selectedRow - 1) % 12 + 12) % 12 + 1;
+    NSInteger year = [self.calendar component:NSCalendarUnitYear fromDate:self.referenceDate];
+    year = year + self.yearPicker.selectedRow;
+    NSDateComponents *components = [[NSDateComponents alloc] init];
+    components.month = month;
+    components.year = year;
+    
+    NSRange dayRange = [self.calendar rangeOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitMonth forDate:[self.calendar dateFromComponents:components]];
+    if (day - dayRange.location >= dayRange.length) {
+        self.dayPicker.selectedRow = self.dayPicker.selectedRow - (day - dayRange.location - dayRange.length + 1);
+        
+        day = [self.calendar component:NSCalendarUnitDay fromDate:self.referenceDate];
+        day = ((day + self.dayPicker.selectedRow - 1) % 31 + 31) % 31 + 1;
+    }
+    
+    components.day = day;
+    
+    _date = [self.calendar dateFromComponents:components];
+    
+    NSLog(@"selected %@", self.date);
 }
 
 - (UIView *)infinitePickerColumn:(EPInfinitePickerColumn *)pickerColumn viewForRowAtIndex:(NSInteger)index
 {
-    UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
-    label.text = [NSString stringWithFormat:@"%ld", (long) index];
-    return label;
+    if (pickerColumn == self.dayPicker) {
+//        NSDate *rowDate = [self.calendar dateByAddingUnit:NSCalendarUnitDay value:index toDate:self.referenceDate options:0];
+        NSInteger day = [self.calendar component:NSCalendarUnitDay fromDate:self.referenceDate];
+        day = ((day + index - 1) % 31 + 31) % 31 + 1;
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
+        label.textAlignment = NSTextAlignmentCenter;
+        label.text = [NSString stringWithFormat:@"%ld", (long)day];
+        return label;
+    }
+    if (pickerColumn == self.monthPicker) {
+//        NSDate *rowDate = [self.calendar dateByAddingUnit:NSCalendarUnitMonth value:index toDate:self.referenceDate options:0];
+        NSInteger month = [self.calendar component:NSCalendarUnitMonth fromDate:self.referenceDate];
+        month = ((month + index - 1) % 12 + 12) % 12 + 1;
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
+        label.textAlignment = NSTextAlignmentCenter;
+        label.text = [NSString stringWithFormat:@"%@", self.dateFormatter.monthSymbols[month - 1]];
+        return label;
+    }
+    if (pickerColumn == self.yearPicker) {
+//        NSDate *rowDate = [self.calendar dateByAddingUnit:NSCalendarUnitYear value:index toDate:self.referenceDate options:0];
+        NSInteger year = [self.calendar component:NSCalendarUnitYear fromDate:self.referenceDate];
+        UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
+        label.textAlignment = NSTextAlignmentCenter;
+        label.text = [NSString stringWithFormat:@"%ld", (long)(year + index)];
+        return label;
+    }
+    
+    return nil;
+}
+
+- (void)setDate:(NSDate *)date
+{
+    if (date == nil)
+        _date = [NSDate date];
+    else
+        _date = date;
+    self.referenceDate = self.date;
+    [self resetColumns];
+}
+
+- (void)setCalendar:(NSCalendar *)calendar
+{
+    if (calendar == nil)
+        _calendar = [NSCalendar currentCalendar];
+    else
+        _calendar = calendar;
+    
+    [self resetColumns];
+}
+
+- (void)setTimezone:(NSTimeZone *)timezone
+{
+    if (timezone == nil)
+        timezone = [NSTimeZone localTimeZone];
+    _timezone = timezone;
+    self.calendar.timeZone = timezone;
+    self.dateFormatter.timeZone = timezone;
+}
+
+- (void)resetColumns
+{
+    [self.dayPicker reloadData];
+    [self.monthPicker reloadData];
+    [self.yearPicker reloadData];
 }
 
 @end
