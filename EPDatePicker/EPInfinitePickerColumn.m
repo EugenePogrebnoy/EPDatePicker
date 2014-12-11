@@ -16,6 +16,9 @@
 
 @property (nonatomic) CGFloat deltaY;
 
+@property (weak, nonatomic) UIView *selectedView;
+@property (strong, nonatomic) UIView *selectionView;
+
 @end
 
 @implementation EPInfinitePickerColumn
@@ -72,11 +75,10 @@
 
 - (void) finishScrollGestureWithVelocity:(CGFloat) velocity
 {
-    NSInteger selected = [self subviewAtVerticalPosition:self.bounds.origin.y + self.bounds.size.height / 2].tag;
-    [self scrollToRow:selected];
+    self.selectedRow = [self subviewAtVerticalPosition:self.bounds.origin.y + self.bounds.size.height / 2].tag;
 }
 
-- (void) scrollToRow:(NSInteger)row
+- (void) selectRow:(NSInteger)row
 {
     CGFloat target = row * self.rowHeight + self.deltaY;
     
@@ -95,12 +97,8 @@
                          [self.scrollGesture setTranslation:CGPointZero inView:self];
                          [self setNeedsLayout];
 
-                         if (row != self.selectedRow) {
-                             _selectedRow = row; // Not triggering scroll
-                             [self.delegate infinitePickerColumn:self selectedRowAtIndex:self.selectedRow];
-                         }
-                         else
-                             _selectedRow = row; // Not triggering scroll
+                         _selectedRow = row;
+                         [self.delegate infinitePickerColumn:self selectedRowAtIndex:self.selectedRow];
                      }
      ];
 }
@@ -134,17 +132,28 @@
         [((UIView*)self.orderedSubviews[self.orderedSubviews.count - 1]) removeFromSuperview];
         [self.orderedSubviews removeObjectAtIndex:self.orderedSubviews.count - 1];
     }
+    
+    UIView *selectedView = [self subviewAtVerticalPosition:self.bounds.origin.y + self.bounds.size.height / 2];
+    if (selectedView != self.selectedView) {
+        [self.selectionView removeFromSuperview];
+        self.selectedView.hidden = NO;
+        self.selectedView = selectedView;
+        self.selectedView.hidden = YES;
+        self.selectionView = [self.dataSource infinitePickerColumn:self viewForRowAtIndex:self.selectedView.tag selected:YES];
+        self.selectionView.frame = self.selectedView.frame;
+        [self addSubview:self.selectionView];
+    }
 }
 
 - (UIView*) addSubviewAtTop
 {
     CGFloat y = self.bounds.origin.y;
-    NSInteger index = 0;
+    NSInteger index = self.selectedRow;
     if (self.orderedSubviews.count > 0) {
         y = ((UIView*)self.orderedSubviews[0]).frame.origin.y;
         index = ((UIView*)self.orderedSubviews[0]).tag - 1;
     }
-    UIView *view = [self.dataSource infinitePickerColumn:self viewForRowAtIndex:index];
+    UIView *view = [self.dataSource infinitePickerColumn:self viewForRowAtIndex:index selected:false];
     view.frame = CGRectMake(0, y - self.rowHeight, self.bounds.size.width, self.rowHeight);
     view.tag = index;
     [self addSubview:view];
@@ -155,13 +164,13 @@
 - (UIView*) addSubviewAtBottom
 {
     CGFloat y = self.bounds.origin.y;
-    NSInteger index = 0;
+    NSInteger index = self.selectedRow;
     if (self.orderedSubviews.count > 0) {
         CGRect frame = ((UIView*)self.orderedSubviews[self.orderedSubviews.count - 1]).frame;
         y = frame.origin.y + frame.size.height;
         index = ((UIView*)self.orderedSubviews[self.orderedSubviews.count - 1]).tag + 1;
     }
-    UIView *view = [self.dataSource infinitePickerColumn:self viewForRowAtIndex:index];
+    UIView *view = [self.dataSource infinitePickerColumn:self viewForRowAtIndex:index selected:false];
     view.frame = CGRectMake(0, y, self.bounds.size.width, self.rowHeight);
     view.tag = index;
     [self addSubview:view];
@@ -186,18 +195,18 @@
 - (void)setSelectedRow:(NSInteger)selectedRow
 {
     _selectedRow = selectedRow;
-    [self scrollToRow:selectedRow];
+    [self selectRow:selectedRow];
 }
 
 - (void) reloadData
 {
     [self.layer removeAllAnimations];
-    for (UIView *view in self.orderedSubviews) {
+    for (UIView *view in self.subviews) {
         [view removeFromSuperview];
     }
     [self.orderedSubviews removeAllObjects];
     self.bounds = CGRectMake(self.bounds.origin.x, 0, self.bounds.size.width, self.bounds.size.height);
-    self.deltaY = 0;
+    self.deltaY = -self.rowHeight*self.selectedRow;
     [self setNeedsLayout];
 }
 

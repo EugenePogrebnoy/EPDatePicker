@@ -50,7 +50,7 @@
     self.timezone = [NSTimeZone localTimeZone];
     
     CGFloat day_month_pos = 0.3 * self.bounds.size.width;
-    CGFloat month_year_pos = 0.8 * self.bounds.size.width;
+    CGFloat month_year_pos = 0.7 * self.bounds.size.width;
     self.dayPicker = [[EPInfinitePickerColumn alloc] initWithFrame:CGRectMake(0, 0, day_month_pos, self.bounds.size.height)];
     self.dayPicker.delegate = self;
     self.dayPicker.dataSource = self;
@@ -63,6 +63,15 @@
     self.yearPicker.delegate = self;
     self.yearPicker.dataSource = self;
     [self addSubview:self.yearPicker];
+    
+    
+    self.textFont = [UIFont systemFontOfSize:20];
+    self.selectedTextFont = [UIFont boldSystemFontOfSize:20];
+    self.disabledTextFont = [UIFont systemFontOfSize:20];
+    
+    self.textColor = [UIColor darkGrayColor];
+    self.selectedTextColor = [UIColor blackColor];
+    self.disabledTextColor = [UIColor lightGrayColor];
 }
 
 - (void)infinitePickerColumn:(EPInfinitePickerColumn *)pickerColumn selectedRowAtIndex:(NSInteger)index
@@ -79,20 +88,23 @@
     
     NSRange dayRange = [self.calendar rangeOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitMonth forDate:[self.calendar dateFromComponents:components]];
     if (day - dayRange.location >= dayRange.length) {
-        self.dayPicker.selectedRow = self.dayPicker.selectedRow - (day - dayRange.location - dayRange.length + 1);
+        components.day = dayRange.location + dayRange.length - 1;
+        _date = [self.calendar dateFromComponents:components];
         
-        day = [self.calendar component:NSCalendarUnitDay fromDate:self.referenceDate];
-        day = ((day + self.dayPicker.selectedRow - 1) % 31 + 31) % 31 + 1;
+        self.dayPicker.selectedRow = self.dayPicker.selectedRow - (day - dayRange.location - dayRange.length + 1);
+
+        return;
     }
     
     components.day = day;
-    
     _date = [self.calendar dateFromComponents:components];
+
+    [self.dayPicker reloadData];
     
     NSLog(@"selected %@", self.date);
 }
 
-- (UIView *)infinitePickerColumn:(EPInfinitePickerColumn *)pickerColumn viewForRowAtIndex:(NSInteger)index
+- (UIView *)infinitePickerColumn:(EPInfinitePickerColumn *)pickerColumn viewForRowAtIndex:(NSInteger)index selected:(BOOL)selected
 {
     if (pickerColumn == self.dayPicker) {
 //        NSDate *rowDate = [self.calendar dateByAddingUnit:NSCalendarUnitDay value:index toDate:self.referenceDate options:0];
@@ -100,6 +112,22 @@
         day = ((day + index - 1) % 31 + 31) % 31 + 1;
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.textAlignment = NSTextAlignmentCenter;
+        if (selected) {
+            label.font = self.selectedTextFont;
+            label.textColor = self.selectedTextColor;
+        }
+        else {
+            NSRange dayRange = [self.calendar rangeOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitMonth forDate:self.date];
+            if (day - dayRange.location >= dayRange.length) {
+                label.font = self.disabledTextFont;
+                label.textColor = self.disabledTextColor;
+            }
+            else {
+                label.font = self.textFont;
+                label.textColor = self.textColor;
+            }
+        }
+        
         label.text = [NSString stringWithFormat:@"%ld", (long)day];
         return label;
     }
@@ -109,6 +137,14 @@
         month = ((month + index - 1) % 12 + 12) % 12 + 1;
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.textAlignment = NSTextAlignmentCenter;
+        if (selected) {
+            label.font = self.selectedTextFont;
+            label.textColor = self.selectedTextColor;
+        }
+        else {
+            label.font = self.textFont;
+            label.textColor = self.textColor;
+        }
         label.text = [NSString stringWithFormat:@"%@", self.dateFormatter.monthSymbols[month - 1]];
         return label;
     }
@@ -117,6 +153,14 @@
         NSInteger year = [self.calendar component:NSCalendarUnitYear fromDate:self.referenceDate];
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.textAlignment = NSTextAlignmentCenter;
+        if (selected) {
+            label.font = self.selectedTextFont;
+            label.textColor = self.selectedTextColor;
+        }
+        else {
+            label.font = self.textFont;
+            label.textColor = self.textColor;
+        }
         label.text = [NSString stringWithFormat:@"%ld", (long)(year + index)];
         return label;
     }
@@ -155,6 +199,9 @@
 
 - (void)resetColumns
 {
+    self.dayPicker.selectedRow = 0;
+    self.monthPicker.selectedRow = 0;
+    self.yearPicker.selectedRow = 0;
     [self.dayPicker reloadData];
     [self.monthPicker reloadData];
     [self.yearPicker reloadData];

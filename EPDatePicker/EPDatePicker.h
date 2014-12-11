@@ -13,4 +13,12 @@
 @property (copy, nonatomic) NSDate *date;
 @property (copy, nonatomic) NSTimeZone *timezone;
 
+@property (copy, nonatomic) UIFont *textFont;
+@property (copy, nonatomic) UIFont *selectedTextFont;
+@property (copy, nonatomic) UIFont *disabledTextFont;
+
+@property (copy, nonatomic) UIColor *textColor;
+@property (copy, nonatomic) UIColor *selectedTextColor;
+@property (copy, nonatomic) UIColor *disabledTextColor;
+
 @end

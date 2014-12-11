@@ -12,7 +12,7 @@
 
 @protocol InfinitePickerColumnDataSource <NSObject>
 
-- (UIView*) infinitePickerColumn:(EPInfinitePickerColumn*)pickerColumn viewForRowAtIndex: (NSInteger) index;
+- (UIView*) infinitePickerColumn:(EPInfinitePickerColumn*)pickerColumn viewForRowAtIndex: (NSInteger) index selected:(BOOL) selected;
 
 @end
 
