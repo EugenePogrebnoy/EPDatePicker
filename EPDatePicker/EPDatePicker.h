@@ -12,6 +12,10 @@
 
 @property (copy, nonatomic) NSDate *date;
 @property (copy, nonatomic) NSTimeZone *timezone;
+@property (copy, nonatomic) NSCalendar *calendar;
+
+@property (copy, nonatomic) NSDate *minDate;
+@property (copy, nonatomic) NSDate *maxDate;
 
 @property (copy, nonatomic) UIFont *textFont;
 @property (copy, nonatomic) UIFont *selectedTextFont;

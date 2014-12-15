@@ -34,4 +34,7 @@
 
 - (void) reloadData;
 
+@property (nonatomic) NSInteger minRow;
+@property (nonatomic) NSInteger maxRow;
+
 @end

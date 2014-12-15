@@ -8,6 +8,8 @@
 
 #import "EPInfinitePickerColumn.h"
 
+#define CLAMP(x, a, b) ((x) > (a) ? ((x) < (b) ? (x) : (b)) : (a))
+
 @interface EPInfinitePickerColumn ()
 
 @property (strong, nonatomic) UIPanGestureRecognizer *scrollGesture;
@@ -50,6 +52,8 @@
     self.rowHeight = 40;
     self.deltaY = 0;
     self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    self.minRow = LONG_MIN;
+    self.maxRow = LONG_MAX;
 }
 
 -(void) handleScrollGesture
@@ -61,7 +65,7 @@
             [self.layer removeAllAnimations];
             break;
         case UIGestureRecognizerStateChanged:
-            self.bounds = CGRectMake(self.bounds.origin.x, -translation.y, self.bounds.size.width, self.bounds.size.height);
+            self.bounds = CGRectMake(self.bounds.origin.x, CLAMP(-translation.y, self.minRow * self.rowHeight + self.deltaY, self.maxRow * self.rowHeight + self.deltaY), self.bounds.size.width, self.bounds.size.height);
             [self setNeedsLayout];
             break;
         case UIGestureRecognizerStateEnded:
