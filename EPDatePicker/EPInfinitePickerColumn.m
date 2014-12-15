@@ -54,6 +54,7 @@
     self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.minRow = LONG_MIN;
     self.maxRow = LONG_MAX;
+    _isInAnimation = NO;
 }
 
 -(void) handleScrollGesture
@@ -63,6 +64,7 @@
     switch (self.scrollGesture.state) {
         case UIGestureRecognizerStateBegan:
             [self.layer removeAllAnimations];
+            _isInAnimation = YES;
             break;
         case UIGestureRecognizerStateChanged:
             self.bounds = CGRectMake(self.bounds.origin.x, CLAMP(-translation.y, self.minRow * self.rowHeight + self.deltaY, self.maxRow * self.rowHeight + self.deltaY), self.bounds.size.width, self.bounds.size.height);
@@ -86,11 +88,13 @@
 {
     CGFloat target = row * self.rowHeight + self.deltaY;
     
+    _isInAnimation = YES;
     [UIView animateWithDuration:0.25 delay:0.0
                         options:UIViewAnimationOptionCurveEaseOut | UIViewAnimationOptionLayoutSubviews | UIViewAnimationOptionAllowUserInteraction
                      animations:^{
                          self.bounds = CGRectMake(self.bounds.origin.x, target, self.bounds.size.width, self.bounds.size.height);
                      } completion:^(BOOL finished) {
+                         _isInAnimation = NO;
                          for (UIView *view in self.subviews) {
                              CGRect frame = view.frame;
                              frame.origin.y -= self.bounds.origin.y;
@@ -198,8 +202,8 @@
 
 - (void)setSelectedRow:(NSInteger)selectedRow
 {
-    _selectedRow = selectedRow;
     [self selectRow:selectedRow];
+    _selectedRow = selectedRow;
 }
 
 - (void) reloadData

@@ -46,13 +46,14 @@
 
 - (void) genericInit
 {
-    self.date = [NSDate date];
-    self.referenceDate = self.date;
-    self.calendar = [NSCalendar currentCalendar];
+    _calendar = [NSCalendar currentCalendar];
     self.dateFormatter = [[NSDateFormatter alloc] init];
-    self.timezone = [NSTimeZone localTimeZone];
+    _timeZone = [NSTimeZone localTimeZone];
+    _calendar.timeZone = _timeZone;
+    _dateFormatter.timeZone = _timeZone;
+    self.date = [NSDate date];
     
-    CGFloat day_month_pos = 0.3 * self.bounds.size.width;
+    CGFloat day_month_pos = 0.19 * self.bounds.size.width;
     CGFloat month_year_pos = 0.7 * self.bounds.size.width;
     self.dayPicker = [[EPInfinitePickerColumn alloc] initWithFrame:CGRectMake(0, 0, day_month_pos, self.bounds.size.height)];
     self.dayPicker.delegate = self;
@@ -79,31 +80,40 @@
 
 - (void)infinitePickerColumn:(EPInfinitePickerColumn *)pickerColumn selectedRowAtIndex:(NSInteger)index
 {
+    if (self.dayPicker.isInAnimation || self.monthPicker.isInAnimation || self.yearPicker.isInAnimation)
+        return;
+    
     NSInteger day = [self.calendar component:NSCalendarUnitDay fromDate:self.referenceDate];
     NSRange maxDayRange = [self.calendar maximumRangeOfUnit:NSCalendarUnitDay];
-    day = ((day + self.dayPicker.selectedRow - maxDayRange.location) % maxDayRange.length + maxDayRange.length) % maxDayRange.length + maxDayRange.location;
+    NSInteger maxDayRangeStart = maxDayRange.location;
+    NSInteger maxDayRangeLength = maxDayRange.length;
+    day = ((day + self.dayPicker.selectedRow - maxDayRangeStart) % maxDayRangeLength + maxDayRangeLength) % maxDayRangeLength + maxDayRangeStart;
     NSInteger month = [self.calendar component:NSCalendarUnitMonth fromDate:self.referenceDate];
     NSRange maxMonthRange = [self.calendar maximumRangeOfUnit:NSCalendarUnitMonth];
-    month = ((month + self.monthPicker.selectedRow - maxMonthRange.location) % maxMonthRange.length + maxMonthRange.length) % maxMonthRange.length + maxMonthRange.location;
+    NSInteger maxMonthRangeStart = maxMonthRange.location;
+    NSInteger maxMonthRangeLength = maxMonthRange.length;
+    month = ((month + self.monthPicker.selectedRow - maxMonthRangeStart) % maxMonthRangeLength + maxMonthRangeLength) % maxMonthRangeLength + maxMonthRangeStart;
     NSInteger year = [self.calendar component:NSCalendarUnitYear fromDate:self.referenceDate];
     year = year + self.yearPicker.selectedRow;
     BOOL willBeCorrected = NO;
     NSDateComponents *components = [[NSDateComponents alloc] init];
 
     NSRange yearRange = [self.calendar rangeOfUnit:NSCalendarUnitYear inUnit:NSCalendarUnitEra forDate:self.referenceDate];
-    if (year - yearRange.location >= yearRange.length) {
-        components.year = yearRange.location + yearRange.length - 1;
+    NSInteger yearRangeStart = yearRange.location;
+    NSInteger yearRangeLength = yearRange.length;
+    if (year - yearRangeStart >= yearRangeLength) {
+        components.year = yearRangeStart + yearRangeLength - 1;
         _date = [self.calendar dateFromComponents:components];
         
-        self.yearPicker.selectedRow = self.yearPicker.selectedRow - (year - yearRange.location - yearRange.length + 1);
+        self.yearPicker.selectedRow = self.yearPicker.selectedRow - (year - yearRangeStart - yearRangeLength + 1);
         
         willBeCorrected = YES;
     }
-    else if (year < yearRange.location) {
-        components.year = yearRange.location;
+    else if (year < yearRangeStart) {
+        components.year = yearRangeStart;
         _date = [self.calendar dateFromComponents:components];
         
-        self.yearPicker.selectedRow = self.yearPicker.selectedRow + (yearRange.location - year);
+        self.yearPicker.selectedRow = self.yearPicker.selectedRow + (yearRangeStart - year);
         
         willBeCorrected = YES;
     }
@@ -111,19 +121,21 @@
         components.year = year;
 
     NSRange monthRange = [self.calendar rangeOfUnit:NSCalendarUnitMonth inUnit:NSCalendarUnitYear forDate:[self.calendar dateFromComponents:components]];
-    if (month - monthRange.location >= monthRange.length) {
-        components.month = monthRange.location + monthRange.length - 1;
+    NSInteger monthRangeStart = monthRange.location;
+    NSInteger monthRangeLength = monthRange.length;
+    if (month - monthRangeStart >= monthRangeLength) {
+        components.month = monthRangeStart + monthRangeLength - 1;
         _date = [self.calendar dateFromComponents:components];
         
-        self.monthPicker.selectedRow = self.monthPicker.selectedRow - (month - monthRange.location - monthRange.length + 1);
+        self.monthPicker.selectedRow = self.monthPicker.selectedRow - (month - monthRangeStart - monthRangeLength + 1);
         
         willBeCorrected = YES;
     }
-    else if (month < monthRange.location) {
-        components.month = monthRange.location;
+    else if (month < monthRangeStart) {
+        components.month = monthRangeStart;
         _date = [self.calendar dateFromComponents:components];
         
-        self.monthPicker.selectedRow = self.monthPicker.selectedRow + (monthRange.location - month);
+        self.monthPicker.selectedRow = self.monthPicker.selectedRow + (monthRangeStart - month);
         
         willBeCorrected = YES;
     }
@@ -131,19 +143,21 @@
         components.month = month;
     
     NSRange dayRange = [self.calendar rangeOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitMonth forDate:[self.calendar dateFromComponents:components]];
-    if (day - dayRange.location >= dayRange.length) {
-        components.day = dayRange.location + dayRange.length - 1;
+    NSInteger dayRangeStart = dayRange.location;
+    NSInteger dayRangeLength = dayRange.length;
+    if (day - dayRangeStart >= dayRangeLength) {
+        components.day = dayRangeStart + dayRangeLength - 1;
         _date = [self.calendar dateFromComponents:components];
         
-        self.dayPicker.selectedRow = self.dayPicker.selectedRow - (day - dayRange.location - dayRange.length + 1);
+        self.dayPicker.selectedRow = self.dayPicker.selectedRow - (day - dayRangeStart - dayRangeLength + 1);
 
         willBeCorrected = YES;
     }
-    else if (day < dayRange.location) {
-        components.day = dayRange.location;
+    else if (day < dayRangeStart) {
+        components.day = dayRangeStart;
         _date = [self.calendar dateFromComponents:components];
         
-        self.dayPicker.selectedRow = self.dayPicker.selectedRow + (dayRange.location - day);
+        self.dayPicker.selectedRow = self.dayPicker.selectedRow + (dayRangeStart - day);
         
         willBeCorrected = YES;
     }
@@ -157,23 +171,23 @@
     
     NSDate *date = [self.calendar dateFromComponents:components];
     
-    if (self.minDate != nil && [self.minDate compare:date] == NSOrderedDescending) {
-        date = self.minDate;
+    if (self.minimumDate != nil && [self.minimumDate compare:date] == NSOrderedDescending) {
+        date = self.minimumDate;
         
         self.yearPicker.selectedRow = self.yearPicker.selectedRow + (self.minComponents.year - year);
-        self.monthPicker.selectedRow = self.monthPicker.selectedRow + ((self.minComponents.month - month) % maxMonthRange.length + maxMonthRange.length) % maxMonthRange.length;
-        self.dayPicker.selectedRow = self.dayPicker.selectedRow + ((self.minComponents.day - day) % maxDayRange.length + maxDayRange.length) % maxDayRange.length;
+        self.monthPicker.selectedRow = self.monthPicker.selectedRow + ((self.minComponents.month - month) % maxMonthRangeLength + maxMonthRangeLength) % maxMonthRangeLength;
+        self.dayPicker.selectedRow = self.dayPicker.selectedRow + ((self.minComponents.day - day) % maxDayRangeLength + maxDayRangeLength) % maxDayRangeLength;
         
         components = self.minComponents;
         
         willBeCorrected = YES;
     }
-    if (self.maxDate != nil && [self.maxDate compare:date] == NSOrderedAscending) {
-        date = self.maxDate;
+    if (self.maximumDate != nil && [self.maximumDate compare:date] == NSOrderedAscending) {
+        date = self.maximumDate;
         
         self.yearPicker.selectedRow = self.yearPicker.selectedRow - (year - self.maxComponents.year);
-        self.monthPicker.selectedRow = self.monthPicker.selectedRow + ((month - self.maxComponents.month) % maxMonthRange.length + maxMonthRange.length) % maxMonthRange.length;
-        self.dayPicker.selectedRow = self.dayPicker.selectedRow + ((day - self.maxComponents.day) % maxDayRange.length + maxDayRange.length) % maxDayRange.length;
+        self.monthPicker.selectedRow = self.monthPicker.selectedRow - ((month - self.maxComponents.month) % maxMonthRangeLength + maxMonthRangeLength) % maxMonthRangeLength;
+        self.dayPicker.selectedRow = self.dayPicker.selectedRow - ((day - self.maxComponents.day) % maxDayRangeLength + maxDayRangeLength) % maxDayRangeLength;
         
         components = self.maxComponents;
         
@@ -187,8 +201,10 @@
         return;
 
     [self.dayPicker reloadData];
+    [self.monthPicker reloadData];
     
-    NSLog(@"selected %@", self.date);
+    CLS_LOG(@"selected %@", self.date);
+//    NSLog(@"selected %@", self.date);
 }
 
 - (UIView *)infinitePickerColumn:(EPInfinitePickerColumn *)pickerColumn viewForRowAtIndex:(NSInteger)index selected:(BOOL)selected
@@ -196,7 +212,9 @@
     if (pickerColumn == self.dayPicker) {
         NSInteger day = [self.calendar component:NSCalendarUnitDay fromDate:self.referenceDate];
         NSRange dayRange = [self.calendar maximumRangeOfUnit:NSCalendarUnitDay];
-        day = ((day + index - dayRange.location) % dayRange.length + dayRange.length) % dayRange.length + dayRange.location;
+        NSInteger rangeStart = dayRange.location;
+        NSInteger rangeLength = dayRange.length;
+        day = ((day + index - rangeStart) % rangeLength + rangeLength) % rangeLength + rangeStart;
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.textAlignment = NSTextAlignmentCenter;
         if (selected) {
@@ -206,8 +224,8 @@
         else {
             NSRange dayRange = [self.calendar rangeOfUnit:NSCalendarUnitDay inUnit:NSCalendarUnitMonth forDate:self.date];
             BOOL allowed = day - dayRange.location < dayRange.length;
-            allowed = allowed && (self.minDate == nil || self.minComponents.year < self.components.year || (self.minComponents.year == self.components.year && (self.minComponents.month < self.components.month || (self.minComponents.month == self.components.month && self.minComponents.day <= day))));
-            allowed = allowed && (self.maxDate == nil || self.maxComponents.year > self.components.year || (self.maxComponents.year == self.components.year && (self.maxComponents.month > self.components.month || (self.maxComponents.month == self.components.month && self.maxComponents.day >= day))));
+            allowed = allowed && (self.minimumDate == nil || self.minComponents.year < self.components.year || (self.minComponents.year == self.components.year && (self.minComponents.month < self.components.month || (self.minComponents.month == self.components.month && self.minComponents.day <= day))));
+            allowed = allowed && (self.maximumDate == nil || self.maxComponents.year > self.components.year || (self.maxComponents.year == self.components.year && (self.maxComponents.month > self.components.month || (self.maxComponents.month == self.components.month && self.maxComponents.day >= day))));
             if (!allowed) {
                 label.font = self.disabledTextFont;
                 label.textColor = self.disabledTextColor;
@@ -219,12 +237,15 @@
         }
         
         label.text = [NSString stringWithFormat:@"%ld", (long)day];
+        
         return label;
     }
     if (pickerColumn == self.monthPicker) {
         NSInteger month = [self.calendar component:NSCalendarUnitMonth fromDate:self.referenceDate];
         NSRange monthRange = [self.calendar maximumRangeOfUnit:NSCalendarUnitMonth];
-        month = ((month + index - monthRange.location) % monthRange.length + monthRange.length) % monthRange.length + monthRange.location;
+        NSInteger rangeStart = monthRange.location;
+        NSInteger rangeLength = monthRange.length;
+        month = ((month + index - rangeStart) % rangeLength + rangeLength) % rangeLength + rangeStart;
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.textAlignment = NSTextAlignmentCenter;
         if (selected) {
@@ -234,8 +255,8 @@
         else {
             NSRange monthRange = [self.calendar rangeOfUnit:NSCalendarUnitMonth inUnit:NSCalendarUnitYear forDate:self.date];
             BOOL allowed = month - monthRange.location < monthRange.length;
-            allowed = allowed && (self.minDate == nil || self.minComponents.year < self.components.year || (self.minComponents.year == self.components.year && (self.minComponents.month <= month)));
-            allowed = allowed && (self.maxDate == nil || self.maxComponents.year > self.components.year || (self.maxComponents.year == self.components.year && (self.maxComponents.month >= month)));
+            allowed = allowed && (self.minimumDate == nil || self.minComponents.year < self.components.year || (self.minComponents.year == self.components.year && (self.minComponents.month <= month)));
+            allowed = allowed && (self.maximumDate == nil || self.maxComponents.year > self.components.year || (self.maxComponents.year == self.components.year && (self.maxComponents.month >= month)));
             if (!allowed) {
                 label.font = self.disabledTextFont;
                 label.textColor = self.disabledTextColor;
@@ -246,10 +267,12 @@
             }
         }
         label.text = [NSString stringWithFormat:@"%@", self.dateFormatter.monthSymbols[month - monthRange.location]];
+    
         return label;
     }
     if (pickerColumn == self.yearPicker) {
         NSInteger year = [self.calendar component:NSCalendarUnitYear fromDate:self.referenceDate];
+        year = year + index;
         NSRange yearRange = [self.calendar rangeOfUnit:NSCalendarUnitYear inUnit:NSCalendarUnitEra forDate:self.date];
         UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
         label.textAlignment = NSTextAlignmentCenter;
@@ -259,15 +282,23 @@
         }
         else {
             BOOL allowed = year - yearRange.location < yearRange.length;
-            allowed = allowed && (self.minDate == nil || self.minComponents.year <= year);
-            allowed = allowed && (self.maxDate == nil || self.maxComponents.year >= year);
-            label.font = self.textFont;
-            label.textColor = self.textColor;
+            allowed = allowed && (self.minimumDate == nil || self.minComponents.year <= year);
+            allowed = allowed && (self.maximumDate == nil || self.maxComponents.year >= year);
+            
+            if (!allowed) {
+                label.font = self.disabledTextFont;
+                label.textColor = self.disabledTextColor;
+            }
+            else {
+                label.font = self.textFont;
+                label.textColor = self.textColor;
+            }
         }
         if (year - yearRange.location < yearRange.length)
-            label.text = [NSString stringWithFormat:@"%ld", (long)(year + index)];
+            label.text = [NSString stringWithFormat:@"%ld", (long)year];
         else
             label.text = @"";
+        
         return label;
     }
     
@@ -285,6 +316,19 @@
     [self resetColumns];
 }
 
+- (void)setReferenceDate:(NSDate *)referenceDate
+{
+    _referenceDate = referenceDate;
+    NSInteger year = [self.calendar component:NSCalendarUnitYear fromDate:referenceDate];
+    NSRange yearRange = [self.calendar rangeOfUnit:NSCalendarUnitYear inUnit:NSCalendarUnitEra forDate:referenceDate];
+    self.yearPicker.minRow = yearRange.location - year;
+    self.yearPicker.maxRow = yearRange.location + yearRange.length - 1 - year;
+    if (self.minimumDate != nil)
+        self.yearPicker.minRow = MAX(self.yearPicker.minRow, self.minComponents.year - year);
+    if (self.maximumDate != nil)
+        self.yearPicker.maxRow = MIN(self.yearPicker.maxRow, self.maxComponents.year - year);
+}
+
 - (void)setCalendar:(NSCalendar *)calendar
 {
     if (calendar == nil)
@@ -295,43 +339,43 @@
     [self resetColumns];
 }
 
-- (void)setTimezone:(NSTimeZone *)timezone
+- (void)setTimeZone:(NSTimeZone *)timeZone
 {
-    if (timezone == nil)
-        timezone = [NSTimeZone localTimeZone];
-    _timezone = timezone;
-    self.calendar.timeZone = timezone;
-    self.dateFormatter.timeZone = timezone;
+    if (timeZone == nil)
+        timeZone = [NSTimeZone localTimeZone];
+    _timeZone = timeZone;
+    self.calendar.timeZone = timeZone;
+    self.dateFormatter.timeZone = timeZone;
 }
 
-- (void)setMinDate:(NSDate *)minDate
+- (void)setMinimumDate:(NSDate *)minimumDate
 {
-    _minDate = minDate;
-    if (minDate != nil) {
-        self.minComponents = [self.calendar components:NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear fromDate:minDate];
-        if ([minDate compare:self.date] == NSOrderedDescending)
-            self.date = minDate;
+    _minimumDate = minimumDate;
+    if (minimumDate != nil) {
+        self.minComponents = [self.calendar components:NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear fromDate:minimumDate];
+        if ([minimumDate compare:self.date] == NSOrderedDescending)
+            self.date = minimumDate;
         self.yearPicker.minRow = self.minComponents.year - self.components.year;
     }
     else {
         self.maxComponents = nil;
-        self.yearPicker.minRow = LONG_MIN;
+        self.referenceDate = self.referenceDate;
     }
     [self resetColumns];
 }
 
-- (void)setMaxDate:(NSDate *)maxDate
+- (void)setMaximumDate:(NSDate *)maximumDate
 {
-    _maxDate = maxDate;
-    if (maxDate != nil) {
-        self.maxComponents = [self.calendar components:NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear fromDate:maxDate];
-        if ([maxDate compare:self.date] == NSOrderedAscending)
-            self.date = maxDate;
+    _maximumDate = maximumDate;
+    if (maximumDate != nil) {
+        self.maxComponents = [self.calendar components:NSCalendarUnitDay | NSCalendarUnitMonth | NSCalendarUnitYear fromDate:maximumDate];
+        if ([maximumDate compare:self.date] == NSOrderedAscending)
+            self.date = maximumDate;
         self.yearPicker.maxRow = self.minComponents.year - self.components.year;
     }
     else {
         self.maxComponents = nil;
-        self.yearPicker.maxRow = LONG_MAX;
+        self.referenceDate = self.referenceDate;
     }
     [self resetColumns];
 }

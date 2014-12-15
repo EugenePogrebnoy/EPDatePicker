@@ -37,4 +37,6 @@
 @property (nonatomic) NSInteger minRow;
 @property (nonatomic) NSInteger maxRow;
 
+@property (nonatomic, readonly) BOOL isInAnimation;
+
 @end
